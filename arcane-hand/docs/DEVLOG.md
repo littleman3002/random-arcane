@@ -123,3 +123,17 @@ better projectiles, easier camera rotation. Simulation untouched: 25/25 rules te
   combat.py (projectiles in flight), taptest.py (tap selection).
 Measured (container CPU rasterizer; real-GPU frame rate UNVERIFIED): checkpoint 07 (wave 8, 26 towers) 700 draws /
 1.4M tris medium. 1,000-unit stress with 36 towers at gameplay zoom: 657 draws / 4.7M tris low (was 620 / 2.7M).
+
+## Creatures from concept art (Grok Imagine -> TRELLIS image-to-3D -> Blender -> game)
+- docs/concept/ref: concept art for all nine creatures made with Grok Imagine (xAI API).
+- assets/ai3d: TRELLIS (Hugging Face space trellis-community/TRELLIS, free ZeroGPU quota) turned each concept into a
+  sculpted, painted 3D model. Five are in the game: troll, grub, skitter, dasher, bulwark. Wisp, knight, budling and boss
+  hit the free daily GPU quota (resets after ~24 h) and still use the procedural models.
+- assets/blender/import_ai.py (headless Blender, pip bpy): orient + scale, weld and decimate (near 5-12k tris, far 1-2k),
+  new UVs, re-bake colour from the full-detail model plus ambient occlusion, colour-match the average to the concept art,
+  tag animation regions (legs/arms/head/tail/body waves) with smooth weights, write assets/models/<name>.json + .jpg.
+  assets/models/ENABLED lists which models ship; build.py embeds them.
+- Game: rigged models animate with per-vertex skin weight (packed into aLimb to stay under WebGL's 16 attributes);
+  each has its own texture; glow comes from bright saturated texels.
+- assets/blender/ah.py + troll.py: a hand-scripted Blender troll (kept for reference; image-to-3D was far better).
+Rules tests 25/25. 1,000-unit stress with 36 towers: low 657 draws / 4.0M tris, medium 1249 / 4.7M.

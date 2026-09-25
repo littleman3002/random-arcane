@@ -1,2 +1,6 @@
-# Blender-built creatures that replace the procedural models in the game, one name per line.
-# (troll is work in progress and not enabled yet)
+# Creature models that replace the procedural ones in the game, one name per line.
+troll
+grub
+skitter
+dasher
+bulwark

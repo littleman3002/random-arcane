@@ -342,7 +342,11 @@ function animate(mat, isDepth) {
       .replace('#include <metalnessmap_fragment>', 'float metalnessFactor = vMat.y;')
       .replace('#include <emissivemap_fragment>', `#include <emissivemap_fragment>
         diffuseColor.rgb *= mix(0.5, 1.0, smoothstep(-0.02, 0.5, vObj.y)) * (1.0 + 0.12 * smoothstep(0.25, 0.9, vObj.y)); // grounded: darker feet, lit back
-        totalEmissiveRadiance += vGlow * vBase * 2.8 + pm.y * vCol2 * 2.6 * (1. - vDie);      // glow ignores hit-flash / status tint
+        vec3 glowCol = vBase;
+        #ifdef USE_MAP
+        glowCol *= texelColor.rgb * 1.6;                                                      // textured models glow in their own colour
+        #endif
+        totalEmissiveRadiance += vGlow * glowCol * 2.8 + pm.y * vCol2 * 2.6 * (1. - vDie);   // glow ignores hit-flash / status tint
         if (vDie > 0.001) totalEmissiveRadiance += vec3(3.2, 1.2, 4.0) * (1. - smoothstep(0.0, 0.09, dn - vDie * 1.1)); // dissolving edge
         float rimF = pow(1. - clamp(dot(normal, normalize(vViewPosition)), 0., 1.), 3.);
         totalEmissiveRadiance += (diffuseColor.rgb * 0.8 + 0.1) * rimF * 0.55;                // stylised rim light`);

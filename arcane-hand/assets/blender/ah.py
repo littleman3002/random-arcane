@@ -222,7 +222,7 @@ def render_preview(o, img, path, ref=None, size=520):
     cd = bpy.data.cameras.new('c'); cd.lens = 50; cam = _link(bpy.data.objects.new('c', cd))
     sd = bpy.data.lights.new('s', 'SUN'); sd.energy = 3.2; sun = _link(bpy.data.objects.new('s', sd)); sun.rotation_euler = (0.7, 0.3, -0.6)
     w = bpy.data.worlds.new('w'); w.use_nodes = True; w.node_tree.nodes['Background'].inputs['Color'].default_value = (0.55, 0.58, 0.62, 1); w.node_tree.nodes['Background'].inputs['Strength'].default_value = 0.6
-    sc = C().scene; sc.world = w; sc.camera = cam; sc.render.resolution_x = sc.render.resolution_y = size; sc.cycles.samples = 32
+    sc = C().scene; sc.render.engine = 'CYCLES'; sc.cycles.device = 'CPU'; sc.world = w; sc.camera = cam; sc.render.resolution_x = sc.render.resolution_y = size; sc.cycles.samples = 32
     from PIL import Image
     tiles = []
     for k, (az, el) in enumerate([(1.0, 0.2), (1.5708, 0.05), (-0.6, 0.85)]):
