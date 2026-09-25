@@ -1011,6 +1011,7 @@ if (typeof module !== 'undefined' && module.exports) module.exports = { BasicBot
 else Object.assign(globalThis.AH, { BasicBot, RandomBot, StressBot });
 
 })();</script>
+<script>window.AHR = window.AHR || {}; AHR.MODELS3D = {};</script>
 <script>/* Arcane Hand — rendering utilities (procedural art kit). No simulation access. */
 (function () {
 'use strict';
@@ -2078,7 +2079,8 @@ const VERT_PARS = `attribute float aLimb; attribute vec3 aPivot; attribute float
   mat3 rX(float a){ float c=cos(a), s=sin(a); return mat3(1.,0.,0., 0.,c,s, 0.,-s,c); }
   mat3 rY(float a){ float c=cos(a), s=sin(a); return mat3(c,0.,-s, 0.,1.,0., s,0.,c); }
   mat3 rZ(float a){ float c=cos(a), s=sin(a); return mat3(c,s,0., -s,c,0., 0.,0.,1.); }
-  mat3 limbRot(){ float t = aAnim.x, mv = aAnim.y, l = floor(aLimb + 0.5);
+  float limbW(){ return 1. - fract(aLimb) / 0.998; }  // aLimb = limb id + (1 - skin weight) * 0.998 (WebGL caps attributes at 16)
+  mat3 limbRot(){ float t = aAnim.x, mv = aAnim.y, l = floor(aLimb);
     if (l == 1. || l == 4.) return rX(sin(t) * 0.75 * mv);
     if (l == 2. || l == 3.) return rX(-sin(t) * 0.75 * mv);
     if (l == 5.) return rX(sin(t * 2.) * 0.07 * mv + 0.05 * sin(uTime * 1.3 + t)) * rY(sin(uTime * 0.7 + t * 0.3) * 0.12);
@@ -2094,7 +2096,7 @@ const VERT_PARS = `attribute float aLimb; attribute vec3 aPivot; attribute float
     if (l == 20.) return rY(uTime * 1.6 + t * 0.05);                                          // orbiting shards
     if (l == 23.) return rX(-0.08 - 0.28 * mv * (0.6 + 0.4 * abs(sin(t))) + sin(uTime * 2.1 + t) * 0.05); // cape billows back
     return mat3(1.); }
-  vec3 limbOff(){ float t = aAnim.x, mv = aAnim.y, l = floor(aLimb + 0.5); vec3 o = vec3(0., abs(sin(t)) * 0.035 * mv, 0.);
+  vec3 limbOff(){ float t = aAnim.x, mv = aAnim.y, l = floor(aLimb); vec3 o = vec3(0., abs(sin(t)) * 0.035 * mv, 0.);
     if (l >= 11. && l <= 14.) o.y += max(0., sin(t - (l - 11.) * 1.1)) * 0.06 * mv;
     if (l == 15.) o.y += max(0., cos(t)) * 0.04 * mv; if (l == 16.) o.y += max(0., -cos(t)) * 0.04 * mv;
     if (l == 21.) o.y += sin(uTime * 2.4 + t) * 0.035;                                         // floating / dangling
@@ -2103,9 +2105,9 @@ function animate(mat, isDepth) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = R.clock;
     sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nuniform float uTime;\n' + VERT_PARS);
-    if (!isDepth) sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvObjN = objectNormal; objectNormal = limbRot() * objectNormal;');
+    if (!isDepth) sh.vertexShader = sh.vertexShader.replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nvObjN = objectNormal; objectNormal = mix(objectNormal, limbRot() * objectNormal, limbW());');
     sh.vertexShader = sh.vertexShader.replace('#include <begin_vertex>', `#include <begin_vertex>
-      transformed = aPivot + limbRot() * (transformed - aPivot) + limbOff();
+      transformed = mix(transformed, aPivot + limbRot() * (transformed - aPivot), limbW()) + limbOff();
       float breathe = 1. + sin(uTime * 2.3 + aAnim.x * 0.21) * 0.018;                   // idle breathing
       transformed.y *= breathe; transformed.xz *= 2. - breathe;
       float hit = aAnim.w; transformed.y *= 1. - hit * 0.16; transformed.xz *= 1. + hit * 0.1; // flinch on hit
@@ -2134,18 +2136,45 @@ function animate(mat, isDepth) {
         float rimF = pow(1. - clamp(dot(normal, normalize(vViewPosition)), 0., 1.), 3.);
         totalEmissiveRadiance += (diffuseColor.rgb * 0.8 + 0.1) * rimF * 0.55;                // stylised rim light`);
   };
-  mat.customProgramCacheKey = () => 'creature3' + (isDepth ? 'D' : 'C');
+  mat.customProgramCacheKey = () => 'creature4' + (isDepth ? 'D' : 'C');
   return mat;
 }
 
+// ---------- creatures modelled in Blender (assets/blender): quantised mesh + rig weights + one baked texture each.
+const b64 = (s, T) => { const bin = atob(s), u = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i); return new T(u.buffer); };
+function loadModel(d) {
+  const im = new Image(), tex = new THREE.Texture(im); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 4; tex.flipY = false;
+  im.onload = () => { tex.needsUpdate = true; }; im.src = d.tex;
+  const out = {};
+  for (const key of ['near', 'far']) { const L = d[key], n = L.n, q = b64(L.pos, Uint16Array), lo = L.lo, hi = L.hi;
+    const pos = new Float32Array(n * 3); for (let i = 0; i < n * 3; i++) { const a = i % 3; pos[i] = lo[a] + (hi[a] - lo[a]) * q[i] / 65535; }
+    const nr = b64(L.nor, Int8Array), nor = new Float32Array(n * 3); for (let i = 0; i < n * 3; i++) nor[i] = nr[i] / 127;
+    const uq = b64(L.uv, Uint16Array), uv = new Float32Array(n * 2); for (let i = 0; i < n; i++) { uv[i * 2] = uq[i * 2] / 65535; uv[i * 2 + 1] = 1 - uq[i * 2 + 1] / 65535; }
+    const lb = b64(L.limb, Uint8Array), wq = b64(L.w, Uint8Array), gq = b64(L.glow, Uint8Array), rm = b64(L.rm, Uint8Array);
+    const limb = new Float32Array(n), glow = new Float32Array(n), piv = new Float32Array(n * 3), mt = new Float32Array(n * 2);
+    for (let i = 0; i < n; i++) { limb[i] = lb[i] + (1 - (lb[i] ? wq[i] / 255 : 0)) * 0.998; glow[i] = gq[i] / 255 * 4; mt[i * 2] = rm[i * 2] / 255; mt[i * 2 + 1] = rm[i * 2 + 1] / 255;
+      const p = d.pivots[lb[i]]; if (p) piv.set(p, i * 3); }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('normal', new THREE.BufferAttribute(nor, 3)); g.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
+    g.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3).fill(1), 3)); g.setAttribute('aLimb', new THREE.BufferAttribute(limb, 1));
+    g.setAttribute('aPivot', new THREE.BufferAttribute(piv, 3)); g.setAttribute('aGlow', new THREE.BufferAttribute(glow, 1)); g.setAttribute('aMat', new THREE.BufferAttribute(mt, 2));
+    g.setAttribute('aPat', new THREE.BufferAttribute(new Float32Array(n * 3), 3)); g.setAttribute('aCol2', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+    g.setIndex(new THREE.BufferAttribute(b64(L.idx, n < 65536 ? Uint16Array : Uint32Array), 1)); g.computeBoundingSphere(); out[key] = g; }
+  out.height = d.near.hi[1]; out.tex = tex; return out;
+}
+const BLENDER = {}; for (const [k, d] of Object.entries(R.MODELS3D || {})) { BLENDER[k] = loadModel(d); TYPE[k][0] = 1; TYPE[k][3] = BLENDER[k].height; }
+
 R.buildCreatures = function (world, sim, Q, CAP, MT_KEYS) {
   const lin = R.lin, meshes = {}, animAttr = {}, lod = {}, lodAttr = {};
-  const mat = animate(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 }));
+  const mat = animate(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0 })), matOf = {};
+  for (const k in BLENDER) matOf[k] = animate(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, map: BLENDER[k].tex }));
   const depthMat = animate(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking }), true);
   let shadowsOn = Q !== 'low';
-  const mk = (k, detail, cap) => { DET = detail; const geo = R.merge(MODELS[k]().filter(p => detail || !p.fine), { extra: true }); DET = 1;
+  const mk = (k, detail, cap) => { let geo;
+    if (BLENDER[k]) geo = BLENDER[k][detail ? 'near' : 'far'];
+    else { DET = detail; geo = R.merge(MODELS[k]().filter(p => detail || !p.fine), { extra: true }); DET = 1; }
     const aa = new THREE.InstancedBufferAttribute(new Float32Array(cap * 4), 4); aa.setUsage(THREE.DynamicDrawUsage); geo.setAttribute('aAnim', aa);
-    const im = new THREE.InstancedMesh(geo, mat, cap); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3);
+    const im = new THREE.InstancedMesh(geo, matOf[k] || mat, cap); im.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(cap * 3).fill(1), 3);
     im.instanceMatrix.setUsage(THREE.DynamicDrawUsage); im.count = 0; im.frustumCulled = false; im.castShadow = shadowsOn && detail === 1; im.customDepthMaterial = depthMat;
     world.add(im); return [im, aa]; };
   for (const k of MT_KEYS) { const cap = k === 'boss' ? 4 : Math.min(CAP, 3000) + 400;
@@ -2227,7 +2256,7 @@ R.buildCreatures = function (world, sim, Q, CAP, MT_KEYS) {
   }
   function reset() { dying.length = 0; gen.fill(0); }
   function age(dt) { for (let k = 0; k < dying.length; k++) { dying[k].t += dt; if (dying[k].t >= 0.7) dying.splice(k--, 1); } } // advance corpses without drawing (harness bulk steps)
-  const tris = {}; for (const k of MT_KEYS) tris[k] = [meshes[k].geometry.attributes.position.count / 3, lod[k].geometry.attributes.position.count / 3];
+  const triN = (g) => (g.index ? g.index.count : g.attributes.position.count) / 3; const tris = {}; for (const k of MT_KEYS) tris[k] = [triN(meshes[k].geometry), triN(lod[k].geometry)];
   function setShadows(on) { shadowsOn = on; for (const k of MT_KEYS) meshes[k].castShadow = on; }
   return { draw, onDeath, reset, age, setShadows, meshes, tris, TYPE, stats };
 };

@@ -4,6 +4,13 @@ css = (R/'src/style.css').read_text(); sim = (R/'src/sim.js').read_text(); bots 
 render = ''.join((R/f'src/{f}.js').read_text() for f in ['r_util','r_sky','r_post','r_world','r_creatures','r_towers','r_fx','r_grass','r_river'])
 bots = "(function(){\n" + bots + "\n})();"
 pebbles = (R/'src/pebbles.b64').read_text().strip()
+import json, base64
+models = {}
+enabled = [l.strip() for l in (R/'assets/models/ENABLED').read_text().splitlines() if l.strip() and not l.startswith('#')] if (R/'assets/models/ENABLED').exists() else []
+for f in sorted((R/'assets/models').glob('*.json')):   # creatures built in Blender (assets/blender/*.py); only those listed in assets/models/ENABLED ship
+    if f.stem not in enabled: continue
+    d = json.loads(f.read_text()); d['tex'] = 'data:image/jpeg;base64,' + base64.b64encode(f.with_suffix('.jpg').read_bytes()).decode(); models[d['name']] = d
+models_js = json.dumps(models)
 NOTICE = '''<!--
 Arcane Hand: Horde Defense. Third-party notices:
 Clearwater (c) 2026 Lumaris. MIT License. https://github.com/Aureliengmz/clearwater
@@ -31,6 +38,7 @@ html = f'''<!doctype html>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>{sim}</script>
 <script>{bots}</script>
+<script>window.AHR = window.AHR || {{}}; AHR.MODELS3D = {models_js};</script>
 <script>{render}</script>
 <script>AHR.PEBBLES = "{pebbles}";</script>
 <script>{game}</script>
