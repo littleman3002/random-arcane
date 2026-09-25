@@ -1,0 +1,123 @@
+{
+ "tests": [
+  {
+   "name": "cross-plot action is rejected by the simulation",
+   "ok": true,
+   "detail": "You can only act on your own plot."
+  },
+  {
+   "name": "cannot touch a tower owned by another player",
+   "ok": true,
+   "detail": "That tower is not yours."
+  },
+  {
+   "name": "placement rejects path and river, accepts build tile",
+   "ok": true
+  },
+  {
+   "name": "merge consumes only a same-tier tower (never a higher tier)",
+   "ok": true
+  },
+  {
+   "name": "base merge always yields exactly +1 tier",
+   "ok": true,
+   "detail": "result variety seen: 3"
+  },
+  {
+   "name": "push-your-luck miss still gives the guaranteed +1",
+   "ok": true
+  },
+  {
+   "name": "push-your-luck hit rate ≈ 10%",
+   "ok": true,
+   "detail": "9.0% over 2000"
+  },
+  {
+   "name": "merged tower appears where the clicked tower was",
+   "ok": true
+  },
+  {
+   "name": "locked towers are never used as the random sacrifice",
+   "ok": true,
+   "detail": "You need another unlocked Normal tower."
+  },
+  {
+   "name": "ability inheritance follows the four merge cases",
+   "ok": true,
+   "detail": "fresh abilities seen when both had one: 8/8"
+  },
+  {
+   "name": "random enchant lands only on a tower with an open slot",
+   "ok": true
+  },
+  {
+   "name": "random enchant cost escalates (100 → 125)",
+   "ok": true,
+   "detail": "100, 125"
+  },
+  {
+   "name": "chosen-tower enchant refuses a tower that already has an ability",
+   "ok": true,
+   "detail": "Drop its ability first."
+  },
+  {
+   "name": "chosen-tower enchant costs 500 and hits the chosen tower",
+   "ok": true
+  },
+  {
+   "name": "one ability per tower, ever",
+   "ok": true
+  },
+  {
+   "name": "identical outcome at 30/60/144/jittered/headless frame pacing",
+   "ok": true,
+   "detail": "13 checkpoints, final 1d8a026f"
+  },
+  {
+   "name": "restart fully resets authoritative state",
+   "ok": true
+  },
+  {
+   "name": "every spawned monster dies or reaches the vault (5 full runs)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "no stuck-monster recoveries needed in normal play",
+   "ok": true,
+   "detail": "recoveries: 0"
+  },
+  {
+   "name": "1,000-unit crowd flows for 90s with no lost monsters",
+   "ok": true,
+   "detail": "alive 1000, recoveries 0"
+  },
+  {
+   "name": "heavy slowing never strands monsters",
+   "ok": true,
+   "detail": "recoveries 0"
+  },
+  {
+   "name": "boss telegraphs both phase changes",
+   "ok": true,
+   "detail": "summon, enrage"
+  },
+  {
+   "name": "boss can be defeated and the run reaches victory",
+   "ok": true,
+   "detail": "victory"
+  },
+  {
+   "name": "random legal player: no crashes across 12 runs",
+   "ok": true
+  },
+  {
+   "name": "random legal player: gold never negative, no soft locks",
+   "ok": true,
+   "detail": "6989 invalid actions correctly rejected"
+  }
+ ],
+ "balance": null,
+ "perf": null,
+ "memory": null
+}

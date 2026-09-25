@@ -1,0 +1,28 @@
+{
+ "tests": [
+  {
+   "name": "no continuous heap growth over 12 back-to-back runs",
+   "ok": true,
+   "detail": "4 → 4 → 4 → 4 → 4 → 4 → 4 → 4 → 4 → 4 → 4 → 4 MB"
+  }
+ ],
+ "balance": null,
+ "perf": null,
+ "memory": {
+  "heapMBAfterEachRun": [
+   4,
+   4,
+   4,
+   4,
+   4,
+   4,
+   4,
+   4,
+   4,
+   4,
+   4,
+   4
+  ],
+  "growthMB": 0
+ }
+}

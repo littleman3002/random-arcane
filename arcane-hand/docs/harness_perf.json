@@ -1,0 +1,47 @@
+{
+ "tests": [],
+ "balance": null,
+ "perf": {
+  "250": {
+   "avgTickMs": 0.129,
+   "p99TickMs": 2.312,
+   "maxTickMs": 6.9,
+   "alive": 250,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "500": {
+   "avgTickMs": 0.137,
+   "p99TickMs": 1.224,
+   "maxTickMs": 5.857,
+   "alive": 499,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "1000": {
+   "avgTickMs": 0.18,
+   "p99TickMs": 0.298,
+   "maxTickMs": 2.533,
+   "alive": 1000,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "2500": {
+   "avgTickMs": 0.448,
+   "p99TickMs": 0.761,
+   "maxTickMs": 1.555,
+   "alive": 2500,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "5000": {
+   "avgTickMs": 0.863,
+   "p99TickMs": 1.363,
+   "maxTickMs": 1.949,
+   "alive": 5000,
+   "towers": 40,
+   "recoveries": 0
+  }
+ },
+ "memory": null
+}

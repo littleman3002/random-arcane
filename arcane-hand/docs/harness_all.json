@@ -1,0 +1,239 @@
+{
+ "tests": [
+  {
+   "name": "cross-plot action is rejected by the simulation",
+   "ok": true,
+   "detail": "You can only act on your own plot."
+  },
+  {
+   "name": "cannot touch a tower owned by another player",
+   "ok": true,
+   "detail": "That tower is not yours."
+  },
+  {
+   "name": "placement rejects path and river, accepts build tile",
+   "ok": true
+  },
+  {
+   "name": "merge consumes only a same-tier tower (never a higher tier)",
+   "ok": true
+  },
+  {
+   "name": "base merge always yields exactly +1 tier",
+   "ok": true,
+   "detail": "result variety seen: 3"
+  },
+  {
+   "name": "push-your-luck miss still gives the guaranteed +1",
+   "ok": true
+  },
+  {
+   "name": "push-your-luck hit rate ≈ 10%",
+   "ok": true,
+   "detail": "9.0% over 2000"
+  },
+  {
+   "name": "merged tower appears where the clicked tower was",
+   "ok": true
+  },
+  {
+   "name": "locked towers are never used as the random sacrifice",
+   "ok": true,
+   "detail": "You need another unlocked Normal tower."
+  },
+  {
+   "name": "ability inheritance follows the four merge cases",
+   "ok": true,
+   "detail": "fresh abilities seen when both had one: 8/8"
+  },
+  {
+   "name": "random enchant lands only on a tower with an open slot",
+   "ok": true
+  },
+  {
+   "name": "random enchant cost escalates (100 → 125)",
+   "ok": true,
+   "detail": "100, 125"
+  },
+  {
+   "name": "chosen-tower enchant refuses a tower that already has an ability",
+   "ok": true,
+   "detail": "Drop its ability first."
+  },
+  {
+   "name": "chosen-tower enchant costs 500 and hits the chosen tower",
+   "ok": true
+  },
+  {
+   "name": "one ability per tower, ever",
+   "ok": true
+  },
+  {
+   "name": "identical outcome at 30/60/144/jittered/headless frame pacing",
+   "ok": true,
+   "detail": "13 checkpoints, final 1d8a026f"
+  },
+  {
+   "name": "restart fully resets authoritative state",
+   "ok": true
+  },
+  {
+   "name": "every spawned monster dies or reaches the vault (5 full runs)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "no stuck-monster recoveries needed in normal play",
+   "ok": true,
+   "detail": "recoveries: 0"
+  },
+  {
+   "name": "1,000-unit crowd flows for 90s with no lost monsters",
+   "ok": true,
+   "detail": "alive 1000, recoveries 0"
+  },
+  {
+   "name": "heavy slowing never strands monsters",
+   "ok": true,
+   "detail": "recoveries 0"
+  },
+  {
+   "name": "boss telegraphs both phase changes",
+   "ok": true,
+   "detail": "summon, enrage"
+  },
+  {
+   "name": "boss can be defeated and the run reaches victory",
+   "ok": true,
+   "detail": "victory"
+  },
+  {
+   "name": "random legal player: no crashes across 12 runs",
+   "ok": true
+  },
+  {
+   "name": "random legal player: gold never negative, no soft locks",
+   "ok": true,
+   "detail": "6989 invalid actions correctly rejected"
+  },
+  {
+   "name": "no continuous heap growth over 12 back-to-back runs",
+   "ok": true,
+   "detail": "4.8 → 4.6 → 4.6 → 4.6 → 4.6 → 4.6 → 4.6 → 4.7 → 4.7 → 4.7 → 4.7 → 4.6 MB"
+  }
+ ],
+ "balance": {
+  "basic": {
+   "runs": 24,
+   "winRate": 0.54,
+   "avgWave": 9.9,
+   "avgLeaks": 2.2,
+   "avgMerges": 13.8,
+   "avgMinutes": 17.4,
+   "defeatAtWave": {
+    "8": 1,
+    "10": 10
+   },
+   "dmgShareByElement": {
+    "ember": 14.4,
+    "tide": 16.4,
+    "grove": 13.1,
+    "void": 14.4,
+    "storm": 18.9,
+    "iron": 22.8
+   },
+   "dmgShareByAbility": {
+    "base": 75.3,
+    "aura": 2.3,
+    "splash": 2.4,
+    "chain": 3.8,
+    "pierce": 5.1,
+    "slow": 2.9,
+    "shred": 1.5,
+    "burn": 4.1,
+    "skyward": 2.7
+   }
+  },
+  "random": {
+   "runs": 24,
+   "winRate": 0,
+   "avgWave": 2,
+   "avgLeaks": 20,
+   "avgMerges": 0,
+   "avgMinutes": 2.4,
+   "defeatAtWave": {
+    "2": 24
+   },
+   "dmgShareByElement": {
+    "ember": 0,
+    "tide": 13,
+    "grove": 23.8,
+    "void": 39.5,
+    "storm": 6.4,
+    "iron": 17.3
+   },
+   "dmgShareByAbility": {
+    "base": 100
+   }
+  }
+ },
+ "perf": {
+  "250": {
+   "avgTickMs": 0.039,
+   "p99TickMs": 0.063,
+   "maxTickMs": 0.459,
+   "alive": 250,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "500": {
+   "avgTickMs": 0.068,
+   "p99TickMs": 0.103,
+   "maxTickMs": 0.407,
+   "alive": 499,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "1000": {
+   "avgTickMs": 0.127,
+   "p99TickMs": 0.276,
+   "maxTickMs": 0.337,
+   "alive": 1000,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "2500": {
+   "avgTickMs": 0.302,
+   "p99TickMs": 0.478,
+   "maxTickMs": 0.529,
+   "alive": 2500,
+   "towers": 40,
+   "recoveries": 0
+  },
+  "5000": {
+   "avgTickMs": 0.596,
+   "p99TickMs": 0.777,
+   "maxTickMs": 2.662,
+   "alive": 5000,
+   "towers": 40,
+   "recoveries": 0
+  }
+ },
+ "memory": {
+  "heapMBAfterEachRun": [
+   4.8,
+   4.6,
+   4.6,
+   4.6,
+   4.6,
+   4.6,
+   4.6,
+   4.7,
+   4.7,
+   4.7,
+   4.7,
+   4.6
+  ],
+  "growthMB": 0.1
+ }
+}

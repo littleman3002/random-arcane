@@ -1,0 +1,60 @@
+{
+ "tests": [],
+ "balance": {
+  "basic": {
+   "runs": 24,
+   "winRate": 0.54,
+   "avgWave": 9.9,
+   "avgLeaks": 2.2,
+   "avgMerges": 13.8,
+   "avgMinutes": 17.4,
+   "defeatAtWave": {
+    "8": 1,
+    "10": 10
+   },
+   "dmgShareByElement": {
+    "ember": 14.4,
+    "tide": 16.4,
+    "grove": 13.1,
+    "void": 14.4,
+    "storm": 18.9,
+    "iron": 22.8
+   },
+   "dmgShareByAbility": {
+    "base": 75.3,
+    "aura": 2.3,
+    "splash": 2.4,
+    "chain": 3.8,
+    "pierce": 5.1,
+    "slow": 2.9,
+    "shred": 1.5,
+    "burn": 4.1,
+    "skyward": 2.7
+   }
+  },
+  "random": {
+   "runs": 24,
+   "winRate": 0,
+   "avgWave": 2,
+   "avgLeaks": 20,
+   "avgMerges": 0,
+   "avgMinutes": 2.4,
+   "defeatAtWave": {
+    "2": 24
+   },
+   "dmgShareByElement": {
+    "ember": 0,
+    "tide": 13,
+    "grove": 23.8,
+    "void": 39.5,
+    "storm": 6.4,
+    "iron": 17.3
+   },
+   "dmgShareByAbility": {
+    "base": 100
+   }
+  }
+ },
+ "perf": null,
+ "memory": null
+}
