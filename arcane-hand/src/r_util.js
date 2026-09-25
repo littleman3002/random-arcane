@@ -149,14 +149,17 @@ R.merge = function (parts, { flat = false, extra = false } = {}) {
   parts.forEach((p, k) => { const g = gs[k], P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv, m = p.m || new THREE.Matrix4();
     nm.getNormalMatrix(m); const c = p.c instanceof THREE.Color ? p.c : R.lin(p.c == null ? 0xffffff : p.c);
     const c2 = extra && p.pat ? (p.c2 instanceof THREE.Color ? p.c2 : R.lin(p.c2 == null ? 0x000000 : p.c2)) : null;
+    const VC = p.vc ? g.attributes : null; // sculpted parts carry per-vertex paint (colour, pattern, material, glow)
     for (let i = 0; i < P.count; i++, o++) {
       v.fromBufferAttribute(P, i).applyMatrix4(m); pos.set([v.x, v.y, v.z], o * 3);
       const ao = p.ao ? 0.55 + 0.45 * Math.min(1, Math.max(0, (v.y - p.ao[0]) / (p.ao[1] - p.ao[0]))) : 1;
-      col.set([c.r * ao, c.g * ao, c.b * ao], o * 3);
+      if (VC) col.set([VC.color.getX(i) * ao, VC.color.getY(i) * ao, VC.color.getZ(i) * ao], o * 3); else col.set([c.r * ao, c.g * ao, c.b * ao], o * 3);
       v.fromBufferAttribute(N, i).applyMatrix3(nm).normalize(); nor.set([v.x, v.y, v.z], o * 3);
       if (U) uv.set([U.getX(i) * (p.uvs || 1), U.getY(i) * (p.uvt || p.uvs || 1)], o * 2);
       limb[o] = p.limb || 0; if (p.pivot) piv.set(p.pivot, o * 3); glow[o] = p.glow || 0; matA[o * 2] = p.r != null ? p.r : 0.72; matA[o * 2 + 1] = p.mt || 0;
       if (c2) { pat.set(p.pat, o * 3); col2.set([c2.r * ao, c2.g * ao, c2.b * ao], o * 3); }
+      if (VC) { glow[o] = VC.aGlow.getX(i); matA[o * 2] = VC.aMat.getX(i); matA[o * 2 + 1] = VC.aMat.getY(i);
+        if (extra) { pat.set([VC.aPat.getX(i), VC.aPat.getY(i), VC.aPat.getZ(i)], o * 3); col2.set([VC.aCol2.getX(i), VC.aCol2.getY(i), VC.aCol2.getZ(i)], o * 3); } }
     } });
   const out = new THREE.BufferGeometry();
   out.setAttribute('position', new THREE.BufferAttribute(pos, 3)); out.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
@@ -261,5 +264,79 @@ void main(){ vec3 c = skyCol(normalize(vP), 0., 0.) * 1.6 + vec3(0.02, 0.025, 0.
       #include <encodings_fragment>
     }` }));
   s.add(sky); const pm = new THREE.PMREMGenerator(renderer); const rt = pm.fromScene(s, 0.02); pm.dispose(); return rt.texture;
+};
+})();
+// ---------- SDF sculpting: smooth-blended primitives -> one organic mesh (surface nets). Used for creature bodies.
+// prim kinds (all positions in model units):
+//   { e: [x,y,z], s: [rx,ry,rz], rot: [rx,ry,rz] }             ellipsoid
+//   { a: [x,y,z], b: [x,y,z], r0, r1 }                          round cone / capsule (limbs, tails, horns)
+//   { box: [x,y,z], s: [hx,hy,hz], rot, rr }                    rounded box
+// each prim: k (blend radius into what came before), sub (carve), c (colour), pat/c2 (pattern), r/mt (roughness/metal), glow
+(function () {
+const R = globalThis.AHR;
+function prep(p) {
+  const q = Object.assign({}, p);
+  if (p.e || p.box) { const m = new THREE.Matrix4().makeRotationFromEuler(new THREE.Euler(...(p.rot || [0, 0, 0]))); q.inv = m.clone().invert().elements; q.o = p.e || p.box; }
+  if (p.a) { q.ba = [p.b[0] - p.a[0], p.b[1] - p.a[1], p.b[2] - p.a[2]]; q.L2 = q.ba[0] ** 2 + q.ba[1] ** 2 + q.ba[2] ** 2; }
+  q.col = R.lin(p.c == null ? 0xffffff : p.c); q.col2 = R.lin(p.c2 == null ? 0 : p.c2); q.k = p.k == null ? 0.04 : p.k;
+  // bounds (for fast rejection)
+  let lo, hi; if (p.e) { const m = Math.max(...p.s); lo = p.e.map(v => v - m); hi = p.e.map(v => v + m); }
+  else if (p.box) { const m = Math.hypot(...p.s) + (p.rr || 0); lo = p.box.map(v => v - m); hi = p.box.map(v => v + m); }
+  else { const m = Math.max(p.r0, p.r1); lo = p.a.map((v, i) => Math.min(v, p.b[i]) - m); hi = p.a.map((v, i) => Math.max(v, p.b[i]) + m); }
+  q.lo = lo; q.hi = hi; return q;
+}
+function dist(q, x, y, z) {
+  if (q.e || q.box) { const M = q.inv, px = x - q.o[0], py = y - q.o[1], pz = z - q.o[2];
+    const lx = M[0] * px + M[4] * py + M[8] * pz, ly = M[1] * px + M[5] * py + M[9] * pz, lz = M[2] * px + M[6] * py + M[10] * pz;
+    if (q.e) { const s = q.s, k0 = Math.hypot(lx / s[0], ly / s[1], lz / s[2]), k1 = Math.hypot(lx / (s[0] * s[0]), ly / (s[1] * s[1]), lz / (s[2] * s[2])); return k1 > 1e-9 ? k0 * (k0 - 1) / k1 : -Math.min(...s); }
+    const s = q.s, rr = q.rr || 0, dx = Math.abs(lx) - s[0] + rr, dy = Math.abs(ly) - s[1] + rr, dz = Math.abs(lz) - s[2] + rr;
+    return Math.hypot(Math.max(dx, 0), Math.max(dy, 0), Math.max(dz, 0)) + Math.min(Math.max(dx, dy, dz), 0) - rr; }
+  // round cone (iq)
+  const ax = x - q.a[0], ay = y - q.a[1], az = z - q.a[2], ba = q.ba; let h = (ax * ba[0] + ay * ba[1] + az * ba[2]) / q.L2; h = h < 0 ? 0 : h > 1 ? 1 : h;
+  const dx = ax - ba[0] * h, dy = ay - ba[1] * h, dz = az - ba[2] * h; return Math.hypot(dx, dy, dz) - (q.r0 + (q.r1 - q.r0) * h);
+}
+const smin = (a, b, k) => { if (k <= 0) return Math.min(a, b); const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k * 0.25; };
+const smax = (a, b, k) => -smin(-a, -b, k);
+R.sculpt = function (prims, h = 0.02) {
+  const Q = prims.map(prep); const lo = [1e9, 1e9, 1e9], hi = [-1e9, -1e9, -1e9];
+  for (const q of Q) if (!q.sub) for (let i = 0; i < 3; i++) { lo[i] = Math.min(lo[i], q.lo[i] - q.k); hi[i] = Math.max(hi[i], q.hi[i] + q.k); }
+  for (let i = 0; i < 3; i++) { lo[i] -= h * 2; hi[i] += h * 2; }
+  const nx = Math.ceil((hi[0] - lo[0]) / h), ny = Math.ceil((hi[1] - lo[1]) / h), nz = Math.ceil((hi[2] - lo[2]) / h);
+  const sx = nx + 1, sy = ny + 1, sz = nz + 1, F = new Float32Array(sx * sy * sz);
+  const field = (x, y, z) => { let d = 1e9;
+    for (const q of Q) { if (q.sub) continue; if (x < q.lo[0] - q.k - 0.05 || y < q.lo[1] - q.k - 0.05 || z < q.lo[2] - q.k - 0.05 || x > q.hi[0] + q.k + 0.05 || y > q.hi[1] + q.k + 0.05 || z > q.hi[2] + q.k + 0.05) { d = Math.min(d, 0.06 + Math.max(q.lo[0] - x, x - q.hi[0], q.lo[1] - y, y - q.hi[1], q.lo[2] - z, z - q.hi[2], 0)); continue; }
+      d = smin(d, dist(q, x, y, z), q.k); }
+    for (const q of Q) if (q.sub) d = smax(d, -dist(q, x, y, z), q.k);
+    return d; };
+  for (let k = 0; k < sz; k++) for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) F[(k * sy + j) * sx + i] = field(lo[0] + i * h, lo[1] + j * h, lo[2] + k * h);
+  // surface nets: one vertex per sign-changing cell, one quad per sign-changing edge
+  const vid = new Int32Array(nx * ny * nz).fill(-1), P = [];
+  const E = [[0, 1], [2, 3], [4, 5], [6, 7], [0, 2], [1, 3], [4, 6], [5, 7], [0, 4], [1, 5], [2, 6], [3, 7]];
+  const cv = new Float32Array(8), cp = [];
+  for (let c = 0; c < 8; c++) cp.push([c & 1, (c >> 1) & 1, (c >> 2) & 1]);
+  for (let k = 0; k < nz; k++) for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    let m = 0; for (let c = 0; c < 8; c++) { const v = F[((k + cp[c][2]) * sy + j + cp[c][1]) * sx + i + cp[c][0]]; cv[c] = v; if (v < 0) m |= 1 << c; }
+    if (m === 0 || m === 255) continue;
+    let ax = 0, ay = 0, az = 0, n = 0;
+    for (const [e0, e1] of E) { const a = cv[e0], b = cv[e1]; if ((a < 0) === (b < 0)) continue; const t = a / (a - b);
+      ax += cp[e0][0] + (cp[e1][0] - cp[e0][0]) * t; ay += cp[e0][1] + (cp[e1][1] - cp[e0][1]) * t; az += cp[e0][2] + (cp[e1][2] - cp[e0][2]) * t; n++; }
+    vid[(k * ny + j) * nx + i] = P.length / 3; P.push(lo[0] + (i + ax / n) * h, lo[1] + (j + ay / n) * h, lo[2] + (k + az / n) * h); }
+  const I = [], cell = (i, j, k) => (i < 0 || j < 0 || k < 0 || i >= nx || j >= ny || k >= nz) ? -1 : vid[(k * ny + j) * nx + i];
+  const quad = (a, b, c, d, flip) => { if (a < 0 || b < 0 || c < 0 || d < 0) return; if (flip) I.push(a, c, b, a, d, c); else I.push(a, b, c, a, c, d); };
+  for (let k = 0; k < sz; k++) for (let j = 0; j < sy; j++) for (let i = 0; i < sx; i++) { const v0 = F[(k * sy + j) * sx + i], in0 = v0 < 0;
+    if (i + 1 < sx && in0 !== (F[(k * sy + j) * sx + i + 1] < 0)) quad(cell(i, j - 1, k - 1), cell(i, j, k - 1), cell(i, j, k), cell(i, j - 1, k), !in0);
+    if (j + 1 < sy && in0 !== (F[(k * sy + j + 1) * sx + i] < 0)) quad(cell(i - 1, j, k - 1), cell(i - 1, j, k), cell(i, j, k), cell(i, j, k - 1), !in0);
+    if (k + 1 < sz && in0 !== (F[((k + 1) * sy + j) * sx + i] < 0)) quad(cell(i - 1, j - 1, k), cell(i, j - 1, k), cell(i, j, k), cell(i - 1, j, k), !in0); }
+  // per-vertex paint: soft blend of the nearest primitives' colours; pattern / material from the nearest one
+  const nv = P.length / 3, col = new Float32Array(nv * 3), col2 = new Float32Array(nv * 3), pat = new Float32Array(nv * 3), mat = new Float32Array(nv * 2), gl = new Float32Array(nv);
+  const paint = Q.filter(q => !q.sub);
+  for (let v = 0; v < nv; v++) { const x = P[v * 3], y = P[v * 3 + 1], z = P[v * 3 + 2]; let best = null, bd = 1e9; const ds = paint.map(q => { const d = dist(q, x, y, z); if (d < bd) { bd = d; best = q; } return d; });
+    let r = 0, g = 0, b = 0, wt = 0; paint.forEach((q, i) => { const w = Math.exp(-(ds[i] - bd) / (q.k * 0.35 + 0.003)); if (w < 0.01) return; r += q.col.r * w; g += q.col.g * w; b += q.col.b * w; wt += w; });
+    col.set([r / wt, g / wt, b / wt], v * 3); col2.set([best.col2.r, best.col2.g, best.col2.b], v * 3); pat.set(best.pat || [0, 0, 0], v * 3);
+    mat.set([best.r != null ? best.r : 0.72, best.mt || 0], v * 2); gl[v] = best.glow || 0; }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setIndex(I); g.computeVertexNormals();
+  g.setAttribute('color', new THREE.BufferAttribute(col, 3)); g.setAttribute('aCol2', new THREE.BufferAttribute(col2, 3)); g.setAttribute('aPat', new THREE.BufferAttribute(pat, 3));
+  g.setAttribute('aMat', new THREE.BufferAttribute(mat, 2)); g.setAttribute('aGlow', new THREE.BufferAttribute(gl, 1)); g.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(nv * 2), 2));
+  return g;
 };
 })();
